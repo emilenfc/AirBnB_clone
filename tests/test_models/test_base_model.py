@@ -1,182 +1,132 @@
 #!/usr/bin/python3
-"""
-Test cases for the BaseModel class
-"""
-
-from models.base_model import BaseModel
+"""Defines unnittests for models/base_model.py."""
+import os
+import pep8
 import unittest
-import inspect
-import time
 from datetime import datetime
-import pep8 as pcs
-from unittest import mock
-import models
-base_doc = models.__doc__
-
-
-class TestDocBaseModule(unittest.TestCase):
-    """
-        Base module Documentaion and pep8 Test
-    """
-    @classmethod
-    def setUpClass(cls):
-        """
-            Setting Up Class for test
-        """
-        cls.base_funcs = inspect.getmembers(BaseModel, inspect.isfunction)
-
-    def pep8_test_base(self):
-        """
-            Test pep8 for base module
-        """
-        path = "models/base_model.py"
-        with self.subTest(path=path):
-            Error = pcs.Checker(path).check_all()
-            self.assertEqual(Error, 0)
-
-    def pep8_test_testbase(self):
-        """
-            Test pep8 for Unitesst base module
-        """
-        path = 'tests/test_models/test_base_model.py'
-        with self.subTest(path=path):
-            Error = pcs.Checker(path).check_all()
-            self.assertEqual(Error, 0)
-
-    def test_doc_base(self):
-        """
-            Test Documantaion for Base model
-        """
-        self.assertIsNot(base_doc, None, "Doc missing")
-        self.assertTrue(len(BaseModel.__doc__) >= 1, "Doc Missing")
-        for func in self.base_funcs:
-            with self.subTest(function=func):
-                self.assertIsNot(
-                    func[1].__doc__, None,
-                    "Documentaion missing in base model"
-                )
-                self.assertTrue(
-                    len(func[1].__doc__) > 1,
-                    "Documentaion missiing in base model")
+from models.base_model import BaseModel
+from models.engine.file_storage import FileStorage
 
 
 class TestBaseModel(unittest.TestCase):
-    """
-        Test Case For Base Model
-    """
-    @mock.patch('models.storage')
-    def Test_instance(self, mock_storage):
-        """
-            Testing Base Model Class
-        """
-        instance = BaseModel()
-        self.assetrtIs(type(instance), BaseModel)
-        instance.name = "Ahmed"
-        instance.phone = 9525
-        type_attr = {
-            "id": str,
-            "updated_at": datetime,
-            "created_at": datetime,
-            "name": str,
-            "phone": int
-        }
-        for attr, type_at in type_attr.items():
-            with self.subTest(attr=attr, typ=type_at):
-                self.assertIn(attr, instance.__dict__)
-                self.assertIs(type(instance.__dict__[attr]), type_at)
-            self.assertTrue(mock_storage.new_called)
-            self.assertEqual(instance.name, "Ahmed")
-            self.assertEqual(instance.phone, 9525)
+    """Unittests for testing the BaseModel class."""
 
-    def Test_datetime(self):
-        """
-        Test diffrent instance  diffrent time
-        test Same created at and updated when
-        instance is Created
-        """
-        tc_before = datetime.now()
-        instance1 = BaseModel()
-        tc_after = datetime.now()
-        self.assertTrue(tc_before <= instance1.created_at <= tc_after)
-        time.sleep(1e-4)
-        instance2 = BaseModel()
-        self.assertEqual(instance1.created_at, instance1.updated_at)
-        self.assertNotEqual(instance1.created_at, instance2.created_at)
-        self.assertNotEqual(instance1.updated_at, instance2.updated_at)
+    @classmethod
+    def setUpClass(cls):
+        """BaseModel testing setup.
 
-    def test_uiid(self):
+        Temporarily renames any existing file.json.
+        Resets FileStorage objects dictionary.
+        Creates a BaseModel instance for testing.
         """
-            Test Diffrent uiid diffrent instance
-        """
-        instance1 = BaseModel()
-        instance2 = BaseModel()
-        self.assertNotEqual(instance1.id, instance2.id)
-        uuid = instance1.id
-        with self.subTest(uuid=uuid):
-            self.assertIs(type(uuid), str)
+        try:
+            os.rename("file.json", "tmp")
+        except IOError:
+            pass
+        FileStorage._FileStorage__objects = {}
+        cls.storage = FileStorage()
+        cls.base = BaseModel()
 
-    def test_to_dict(self):
-        """
-            test to dic method in base model
-        """
-        instance = BaseModel()
-        instance.name = "ahmed"
-        instance.num = 95
-        dict_inst = instance.to_dict()
-        attribute = [
-            "id",
-            "created_at",
-            "updated_at",
-            "name",
-            "num",
-            "__class__"]
-        self.assertCountEqual(dict_inst.keys(), attribute)
-        self.assertEqual(dict_inst['__class__'], 'BaseModel')
-        self.assertEqual(dict_inst['name'], "ahmed")
-        self.assertEqual(dict_inst['num'], 95)
+    @classmethod
+    def tearDownClass(cls):
+        """BaseModel testing teardown.
 
-    def to_dict_value(self):
+        Restore original file.json.
+        Delete the test BaseModel instance.
         """
-            test that to dict return are correct or no
-        """
-        time_f = "%Y-%m-%dT%H:%M:%S.%f"
-        instance = BaseModel()
-        dict_base = instance.to_dict()
-        self.assertEqual(dict_base["__class__"], "BaseModel")
-        self.assertEqual(type(dict_base["created_at"]), str)
-        self.assertEqual(type(dict_base["updated_at"]), str)
-        self.assertEqual(
-            dict_base["created_at"],
-            instance.created_at.strftime(time_f)
-        )
-        self.assertEqual(
-            dict_base["updated_at"],
-            instance.updated_at.strftime(time_f)
-        )
+        try:
+            os.remove("file.json")
+        except IOError:
+            pass
+        try:
+            os.rename("tmp", "file.json")
+        except IOError:
+            pass
+        del cls.storage
+        del cls.base
+
+    def test_pep8(self):
+        """Test pep8 styling."""
+        style = pep8.StyleGuide(quiet=True)
+        p = style.check_files(["models/base_model.py"])
+        self.assertEqual(p.total_errors, 0, "fix pep8")
+
+    def test_docstrings(self):
+        """Check for docstrings."""
+        self.assertIsNotNone(BaseModel.__doc__)
+        self.assertIsNotNone(BaseModel.__init__.__doc__)
+        self.assertIsNotNone(BaseModel.save.__doc__)
+        self.assertIsNotNone(BaseModel.to_dict.__doc__)
+        self.assertIsNotNone(BaseModel.delete.__doc__)
+        self.assertIsNotNone(BaseModel.__str__.__doc__)
+
+    def test_attributes(self):
+        """Check for attributes."""
+        self.assertEqual(str, type(self.base.id))
+        self.assertEqual(datetime, type(self.base.created_at))
+        self.assertEqual(datetime, type(self.base.updated_at))
+
+    def test_methods(self):
+        """Check for methods."""
+        self.assertTrue(hasattr(BaseModel, "__init__"))
+        self.assertTrue(hasattr(BaseModel, "save"))
+        self.assertTrue(hasattr(BaseModel, "to_dict"))
+        self.assertTrue(hasattr(BaseModel, "delete"))
+        self.assertTrue(hasattr(BaseModel, "__str__"))
+
+    def test_init(self):
+        """Test initialization."""
+        self.assertIsInstance(self.base, BaseModel)
+
+    def test_two_models_are_unique(self):
+        """Test that different BaseModel instances are unique."""
+        bm = BaseModel()
+        self.assertNotEqual(self.base.id, bm.id)
+        self.assertLess(self.base.created_at, bm.created_at)
+        self.assertLess(self.base.updated_at, bm.updated_at)
+
+    def test_init_args_kwargs(self):
+        """Test initialization with args and kwargs."""
+        dt = datetime.utcnow()
+        bm = BaseModel("1", id="5", created_at=dt.isoformat())
+        self.assertEqual(bm.id, "5")
+        self.assertEqual(bm.created_at, dt)
 
     def test_str(self):
-        """
-            test str method
-        """
-        instance = BaseModel()
-        correct_str = "[BaseModel] ({}) {}".format(
-            instance.id,
-            instance.__dict__
-        )
-        self.assertEqual(correct_str, str(instance))
+        """Test __str__ representation."""
+        s = self.base.__str__()
+        self.assertIn("[BaseModel] ({})".format(self.base.id), s)
+        self.assertIn("'id': '{}'".format(self.base.id), s)
+        self.assertIn("'created_at': {}".format(repr(self.base.created_at)), s)
+        self.assertIn("'updated_at': {}".format(repr(self.base.updated_at)), s)
 
-    @mock.patch("models.storage")
-    def test_save(self, mock_storage):
-        """
-            test save and update at is working and storage call
-            save
-        """
-        instance = BaseModel()
-        old_value_created = instance.created_at
-        old_value_update = instance.updated_at
-        instance.save()
-        new_value_created = instance.created_at
-        new_value_updated = instance.updated_at
-        self.assertNotEqual(old_value_update, new_value_updated)
-        self.assertEqual(old_value_created, new_value_created)
-        """self.assertTrue(mock_storage.save.called)"""
+    @unittest.skipIf(os.getenv("HBNB_ENV") is not None, "Testing DBStorage")
+    def test_save(self):
+        """Test save method."""
+        old = self.base.updated_at
+        self.base.save()
+        self.assertLess(old, self.base.updated_at)
+        with open("file.json", "r") as f:
+            self.assertIn("BaseModel.{}".format(self.base.id), f.read())
+
+    def test_to_dict(self):
+        """Test to_dict method."""
+        base_dict = self.base.to_dict()
+        self.assertEqual(dict, type(base_dict))
+        self.assertEqual(self.base.id, base_dict["id"])
+        self.assertEqual("BaseModel", base_dict["__class__"])
+        self.assertEqual(self.base.created_at.isoformat(),
+                         base_dict["created_at"])
+        self.assertEqual(self.base.updated_at.isoformat(),
+                         base_dict["updated_at"])
+        self.assertEqual(base_dict.get("_sa_instance_state", None), None)
+
+    @unittest.skipIf(os.getenv("HBNB_ENV") is not None, "Testing DBStorage")
+    def test_delete(self):
+        """Test delete method."""
+        self.base.delete()
+        self.assertNotIn(self.base, FileStorage._FileStorage__objects)
+
+
+if __name__ == "__main__":
+    unittest.main()
